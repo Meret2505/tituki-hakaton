@@ -129,19 +129,32 @@ tar -czf - -C /Users/meret/hakaton node_modules 2>/dev/null | \
   "tar -xzf - -C $APP_DIR"
 ok "node_modules copied in $((SECONDS-START))s."
 
-log "  Rebuilding native binaries for Linux..."
+log "  Fixing native binaries for Linux..."
+
+# Copy pre-downloaded lightningcss Linux binary to server
+sub "Copying lightningcss-linux-x64-gnu binary..."
+sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR "$SSHUSER@$SERVER" \
+  "mkdir -p $APP_DIR/node_modules/lightningcss-linux-x64-gnu"
+sshpass -p "$PASS" scp -o StrictHostKeyChecking=no -o LogLevel=ERROR \
+  /tmp/lightningcss-linux-x64-gnu.tgz \
+  "$SSHUSER@$SERVER:/tmp/lightningcss-linux-x64-gnu.tgz"
+
 remote << EOF
+echo "  Installing lightningcss-linux-x64-gnu from local tarball..."
 cd "$APP_DIR"
-echo "  Removing Mac-specific .node binaries (darwin only)..."
+tar -xzf /tmp/lightningcss-linux-x64-gnu.tgz -C /tmp/
+cp -r /tmp/package/. node_modules/lightningcss-linux-x64-gnu/
+rm -rf /tmp/package
+echo "  Removing Mac-specific .node binaries..."
 find node_modules -name "*darwin*.node" -delete 2>/dev/null || true
 echo "  Rebuilding better-sqlite3 for Linux..."
 npm rebuild better-sqlite3 2>&1
 echo "  Verifying lightningcss..."
-node -e "require('lightningcss')" 2>&1 && echo "  ✓ lightningcss OK" || echo "  ✗ lightningcss failed"
+node -e "require('lightningcss')" 2>&1 && echo "  ✓ lightningcss OK" || echo "  ✗ lightningcss FAILED"
 echo "  Verifying better-sqlite3..."
-node -e "require('better-sqlite3')" 2>&1 && echo "  ✓ better-sqlite3 OK" || echo "  ✗ better-sqlite3 failed"
+node -e "require('better-sqlite3')" 2>&1 && echo "  ✓ better-sqlite3 OK" || echo "  ✗ better-sqlite3 FAILED"
 EOF
-ok "Native rebuild done."
+ok "Native binaries ready."
 
 # ── STEP 6: Database ───────────────────────────────────────
 log "[6/8] Setting up database..."
